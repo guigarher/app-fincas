@@ -3,14 +3,14 @@ import requests
 
 st.set_page_config(page_title="Gestión de Fincas", layout="wide")
 
-# ──────────────────────────────
-# 🔐 DATOS SENSIBLES DESDE SECRETS
+# ──────────────────────────────────────────────
+# 🔐 DATOS DEL BOT Y TOPICS DESDE SECRETS
 TOKEN_BOT = st.secrets["TELEGRAM_BOT_TOKEN"]
 CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
 TOPIC_ID_1 = st.secrets["TOPIC_ID_1"]  # DataLost
 TOPIC_ID_2 = st.secrets["TOPIC_ID_2"]  # Manager
 TOPIC_ID_3 = st.secrets["TOPIC_ID_3"]  # Reboots
-# ──────────────────────────────
+# ──────────────────────────────────────────────
 
 # Lista de fincas disponibles
 fincas = [
@@ -18,13 +18,13 @@ fincas = [
     "las_canas", "la_luz", "la_quinta_3", "majuelos", "carlos_ascanio"
 ]
 
-# Parámetros configurables con /set
+# Parámetros disponibles para /set
 parametros_set = [
     "water_counter", "WD_timeout", "read_interval", "data_count",
     "max_messages", "min_signal", "min_battery"
 ]
 
-# Sidebar para selección de fincas
+# ─────────────── INTERFAZ LATERAL ─────────────── #
 st.sidebar.title("🌾 Fincas disponibles")
 fincas_seleccionadas = [finca for finca in fincas if st.sidebar.checkbox(finca)]
 
@@ -32,12 +32,26 @@ st.sidebar.subheader("✅ Fincas seleccionadas:")
 for finca in fincas_seleccionadas:
     st.sidebar.write(f"🔹 {finca}")
 
-# Función para enviar comandos al bot de Telegram
-def enviar_a_telegram(comando_texto):
+# Selección del topic
+st.sidebar.subheader("📂 Topic de Telegram")
+topic_opcion = st.sidebar.selectbox(
+    "Selecciona el topic:",
+    options=["Manager", "Reboots", "DataLost"],
+    index=0
+)
+
+topic_id = {
+    "Manager": TOPIC_ID_2,
+    "Reboots": TOPIC_ID_3,
+    "DataLost": TOPIC_ID_1
+}[topic_opcion]
+
+# ─────────────── FUNCIÓN PARA ENVIAR A TELEGRAM ─────────────── #
+def enviar_a_telegram(comando_texto, topic_id):
     url = f"https://api.telegram.org/bot{TOKEN_BOT}/sendMessage"
     payload = {
         "chat_id": CHAT_ID,
-        "message_thread_id": TOPIC_ID_2,  # Enviar al topic Manager
+        "message_thread_id": topic_id,
         "text": comando_texto
     }
     response = requests.post(url, data=payload)
@@ -45,10 +59,9 @@ def enviar_a_telegram(comando_texto):
     if response.status_code == 200:
         st.success(f"✅ Comando enviado: {comando_texto}")
     else:
-        st.error("❌ Error al enviar a Telegram. Revisa el TOKEN, CHAT_ID o TOPIC_ID.")
+        st.error("❌ Error al enviar a Telegram. Revisa el TOKEN, CHAT_ID o TOPIC.")
 
-
-# Función para construir y enviar el comando
+# ─────────────── FUNCIÓN PARA PROCESAR COMANDOS ─────────────── #
 def ejecutar_comando(comando, extra_param=""):
     if not fincas_seleccionadas:
         st.warning("⚠️ Selecciona al menos una finca.")
@@ -58,15 +71,14 @@ def ejecutar_comando(comando, extra_param=""):
         if extra_param:
             comando_final += f" {extra_param}"
         st.code(comando_final)
-        enviar_a_telegram(comando_final)
+        enviar_a_telegram(comando_final, topic_id)
 
-# Título principal
+# ─────────────── SECCIÓN PRINCIPAL ─────────────── #
 st.markdown("<h1 style='text-align: center;'>🔧 Comandos disponibles</h1>", unsafe_allow_html=True)
 
-# Columnas principales
 col1, col2, col3 = st.columns(3)
 
-# Comandos simples
+# ─── COL 1: Comandos simples ───
 with col1:
     st.subheader("📦 Comandos directos")
     if st.button("🟢 /get"):
@@ -80,14 +92,14 @@ with col1:
     if st.button("📥 /latest"):
         ejecutar_comando("latest")
 
-# Comando /sleep
+# ─── COL 2: Comando sleep ───
 with col2:
     st.subheader("😴 Comando /sleep")
     tiempo = st.number_input("Duración en segundos", min_value=1, max_value=3600, step=1, value=60)
     if st.button("💤 Ejecutar /sleep"):
         ejecutar_comando("sleep", str(tiempo))
 
-# Comando /set
+# ─── COL 3: Comando set ───
 with col3:
     st.subheader("⚙️ Comando /set")
     parametros_seleccionados = st.multiselect("Parámetros a configurar", parametros_set)
