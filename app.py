@@ -37,6 +37,7 @@ def enviar_a_telegram(comando_texto):
     url = f"https://api.telegram.org/bot{TOKEN_BOT}/sendMessage"
     payload = {
         "chat_id": CHAT_ID,
+        "message_thread_id": TOPIC_ID_2,  # Enviar al topic Manager
         "text": comando_texto
     }
     response = requests.post(url, data=payload)
@@ -44,7 +45,8 @@ def enviar_a_telegram(comando_texto):
     if response.status_code == 200:
         st.success(f"✅ Comando enviado: {comando_texto}")
     else:
-        st.error("❌ Error al enviar a Telegram. Revisa el TOKEN o CHAT_ID.")
+        st.error("❌ Error al enviar a Telegram. Revisa el TOKEN, CHAT_ID o TOPIC_ID.")
+
 
 # Función para construir y enviar el comando
 def ejecutar_comando(comando, extra_param=""):
