@@ -39,6 +39,9 @@ def enviar_a_node_red(comando):
     except Exception as e:
         return f"❌ Error de conexión: {str(e)}"
 
+# Variables para almacenar respuestas a mostrar en col2
+respuestas_pendientes = []
+
 # Título principal
 st.markdown("<h1 style='text-align: center;'>🔧 Comandos disponibles</h1>", unsafe_allow_html=True)
 
@@ -55,35 +58,29 @@ with col1:
         else:
             for finca in fincas_seleccionadas:
                 comando = f"/get {finca}"
-                st.code(comando)
-                respuesta = enviar_a_node_red(comando)
-                st.text_area(f"Respuesta de {finca}", respuesta, height=100, key=f"get_{finca}")
+                respuestas_pendientes.append((comando, enviar_a_node_red(comando)))
 
     if st.button("🔄 Ejecutar /reboot"):
         for finca in fincas_seleccionadas:
             comando = f"/reboot {finca}"
-            st.code(comando)
-            enviar_a_node_red(comando)
+            respuestas_pendientes.append((comando, enviar_a_node_red(comando)))
 
     if st.button("📱 Ejecutar /sim"):
         for finca in fincas_seleccionadas:
             comando = f"/sim {finca}"
-            st.code(comando)
-            enviar_a_node_red(comando)
+            respuestas_pendientes.append((comando, enviar_a_node_red(comando)))
 
     if st.button("📊 Ejecutar /status"):
         for finca in fincas_seleccionadas:
             comando = f"/status {finca}"
-            st.code(comando)
-            enviar_a_node_red(comando)
+            respuestas_pendientes.append((comando, enviar_a_node_red(comando)))
 
     if st.button("📥 Ejecutar /latest"):
         for finca in fincas_seleccionadas:
             comando = f"/latest {finca}"
-            st.code(comando)
-            enviar_a_node_red(comando)
+            respuestas_pendientes.append((comando, enviar_a_node_red(comando)))
 
-# Columna 2: comando /sleep (solo bajo botón)
+# Columna 2: comando /sleep + mostrar todas las respuestas acumuladas
 with col2:
     st.subheader("😴 Comando /sleep")
     tiempo = st.number_input("Duración (segundos)", min_value=1, max_value=3600, step=1, value=60)
@@ -91,9 +88,13 @@ with col2:
     if st.button("💤 Ejecutar /sleep"):
         for finca in fincas_seleccionadas:
             comando = f"/sleep {finca} {tiempo}"
-            st.code(comando)
-            respuesta = enviar_a_node_red(comando)
-            st.text_area(f"Respuesta sleep de {finca}", respuesta, height=100, key=f"sleep_{finca}")
+            respuestas_pendientes.append((comando, enviar_a_node_red(comando)))
+
+    if respuestas_pendientes:
+        st.subheader("📋 Respuestas de comandos enviados")
+        for i, (comando, respuesta) in enumerate(respuestas_pendientes):
+            st.markdown(f"**{comando}**")
+            st.text_area("Respuesta", respuesta, height=100, key=f"respuesta_{i}")
 
 # Columna 3: comando /set
 with col3:
@@ -115,8 +116,5 @@ with col3:
             extras = ",".join([f"{k}={v}" for k, v in valores_parametros.items()])
             for finca in fincas_seleccionadas:
                 comando = f"/set {finca} {extras}"
-                st.code(comando)
-                respuesta = enviar_a_node_red(comando)
-                st.text_area(f"Respuesta set de {finca}", respuesta, height=100, key=f"set_{finca}")
-
+                respuestas_pendientes.append((comando, enviar_a_node_red(comando)))
 
