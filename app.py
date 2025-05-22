@@ -4,8 +4,10 @@ import requests
 # Configuración de la app
 st.set_page_config(page_title="Gestión de Fincas", layout="wide")
 
-# Cargar la URL de Node-RED desde secrets
+# Cargar datos desde secrets
 NODE_RED_URL = st.secrets["NODE_RED_URL"]
+TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
+TELEGRAM_CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
 
 # Lista de fincas
 fincas = [
@@ -35,12 +37,34 @@ def enviar_a_node_red(comando):
     headers = {"Content-Type": "application/json"}
     try:
         response = requests.post(NODE_RED_URL, json=payload, headers=headers)
-        return response.text if response.status_code == 200 else f"❌ Error {response.status_code}"
+        if response.status_code == 200:
+            return response.text
+        else:
+            return f"❌ Error {response.status_code}: {response.text}"
     except Exception as e:
         return f"❌ Error de conexión: {str(e)}"
 
-# Variables para almacenar respuestas a mostrar en col2
-respuestas_pendientes = []
+# Función para avisar por Telegram que se ha lanzado un comando desde la app
+def notificar_telegram(comando):
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": f"📡 Comando enviado desde la app Streamlit:\n\n{comando}"
+    }
+    try:
+        response = requests.post(url, data=payload)
+        return response.status_code == 200
+    except Exception as e:
+        st.error(f"Error enviando notificación a Telegram: {e}")
+        return False
+
+# Prueba de conexión (visible en la interfaz)
+st.caption(f"🌐 Verificando conexión con Node-RED: {NODE_RED_URL}")
+try:
+    test_response = requests.post(NODE_RED_URL, json={"content": "/test"})
+    st.success(f"✅ Node-RED responde: {test_response.status_code}")
+except Exception as e:
+    st.error(f"❌ No se pudo conectar con Node-RED: {e}")
 
 # Título principal
 st.markdown("<h1 style='text-align: center;'>🔧 Comandos disponibles</h1>", unsafe_allow_html=True)
@@ -58,29 +82,39 @@ with col1:
         else:
             for finca in fincas_seleccionadas:
                 comando = f"/get {finca}"
-                respuestas_pendientes.append((comando, enviar_a_node_red(comando)))
+                st.code(comando)
+                enviar_a_node_red(comando)
+                notificar_telegram(comando)
 
     if st.button("🔄 Ejecutar /reboot"):
         for finca in fincas_seleccionadas:
             comando = f"/reboot {finca}"
-            respuestas_pendientes.append((comando, enviar_a_node_red(comando)))
+            st.code(comando)
+            enviar_a_node_red(comando)
+            notificar_telegram(comando)
 
     if st.button("📱 Ejecutar /sim"):
         for finca in fincas_seleccionadas:
             comando = f"/sim {finca}"
-            respuestas_pendientes.append((comando, enviar_a_node_red(comando)))
+            st.code(comando)
+            enviar_a_node_red(comando)
+            notificar_telegram(comando)
 
     if st.button("📊 Ejecutar /status"):
         for finca in fincas_seleccionadas:
             comando = f"/status {finca}"
-            respuestas_pendientes.append((comando, enviar_a_node_red(comando)))
+            st.code(comando)
+            enviar_a_node_red(comando)
+            notificar_telegram(comando)
 
     if st.button("📥 Ejecutar /latest"):
         for finca in fincas_seleccionadas:
             comando = f"/latest {finca}"
-            respuestas_pendientes.append((comando, enviar_a_node_red(comando)))
+            st.code(comando)
+            enviar_a_node_red(comando)
+            notificar_telegram(comando)
 
-# Columna 2: comando /sleep + mostrar todas las respuestas acumuladas
+# Columna 2: comando /sleep
 with col2:
     st.subheader("😴 Comando /sleep")
     tiempo = st.number_input("Duración (segundos)", min_value=1, max_value=3600, step=1, value=60)
@@ -88,13 +122,9 @@ with col2:
     if st.button("💤 Ejecutar /sleep"):
         for finca in fincas_seleccionadas:
             comando = f"/sleep {finca} {tiempo}"
-            respuestas_pendientes.append((comando, enviar_a_node_red(comando)))
-
-    if respuestas_pendientes:
-        st.subheader("📋 Respuestas de comandos enviados")
-        for i, (comando, respuesta) in enumerate(respuestas_pendientes):
-            st.markdown(f"**{comando}**")
-            st.text_area("Respuesta", respuesta, height=100, key=f"respuesta_{i}")
+            st.code(comando)
+            enviar_a_node_red(comando)
+            notificar_telegram(comando)
 
 # Columna 3: comando /set
 with col3:
@@ -116,5 +146,9 @@ with col3:
             extras = ",".join([f"{k}={v}" for k, v in valores_parametros.items()])
             for finca in fincas_seleccionadas:
                 comando = f"/set {finca} {extras}"
-                respuestas_pendientes.append((comando, enviar_a_node_red(comando)))
+                st.code(comando)
+                enviar_a_node_red(comando)
+                notificar_telegram(comando)
+
+
 
