@@ -5,6 +5,8 @@ st.set_page_config(page_title="Gestión de Fincas", layout="wide")
 
 # ──────────────────────────────────────────────
 # 🔐 SECRETS NECESARIOS
+# Añadir en .streamlit/secrets.toml:
+# NODE_RED_URL = "http://192.168.21.43:12080/attributes"
 NODE_RED_URL = st.secrets["NODE_RED_URL"]
 # ──────────────────────────────────────────────
 
@@ -87,14 +89,15 @@ with col1:
     if st.button("🟢 /get"):
         if not fincas_seleccionadas:
             st.warning("⚠️ Selecciona al menos una finca.")
-        for finca in fincas_seleccionadas:
-            comando = f"/get {finca}"
-            st.code(comando)
-            ok = enviar_a_node_red(comando)
-            if ok:
-                respuesta = consultar_estado_finca(finca)
-                st.markdown(f"**📡 Respuesta de `{finca}`:**")
-                st.text_area("Contenido", respuesta, height=100)
+        else:
+            for finca in fincas_seleccionadas:
+                comando = f"/get {finca}"
+                st.code(comando)
+                ok = enviar_a_node_red(comando)
+                if ok:
+                    respuesta = consultar_estado_finca(finca)
+                    st.markdown(f"**📡 Respuesta de `{finca}`:**")
+                    st.text_area("Contenido", respuesta, height=100, key=f"respuesta_{finca}")
 
     if st.button("🔄 /reboot"):
         ejecutar_comando_simple("reboot")
@@ -108,12 +111,20 @@ with col1:
     if st.button("📥 /latest"):
         ejecutar_comando_simple("latest")
 
-# 😴 Columna 2: sleep
+# 😴 Columna 2: sleep + mostrar datos de Node-RED sin necesidad de botón
 with col2:
     st.subheader("😴 Comando /sleep")
     tiempo = st.number_input("Duración en segundos", min_value=1, max_value=3600, step=1, value=60)
     if st.button("💤 Ejecutar /sleep"):
         ejecutar_comando_simple("sleep", str(tiempo))
+
+    # Mostrar automáticamente el estado actual de todas las fincas seleccionadas
+    if fincas_seleccionadas:
+        st.subheader("📋 Estado actual desde Node-RED")
+        for finca in fincas_seleccionadas:
+            respuesta = consultar_estado_finca(finca)
+            st.markdown(f"**🟢 Finca: `{finca}`**")
+            st.text_area("Contenido", respuesta, height=100, key=f"estado_actual_{finca}")
 
 # ⚙️ Columna 3: set
 with col3:
