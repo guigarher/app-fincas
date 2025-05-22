@@ -21,7 +21,9 @@ parametros_set = [
 
 # ─────────────── INTERFAZ LATERAL ─────────────── #
 st.sidebar.title("🌾 Fincas disponibles")
-fincas_seleccionadas = [f for f in fincas if st.sidebar.checkbox(f)]
+fincas_seleccionadas = [
+    f for f in fincas if st.sidebar.checkbox(f, key=f"checkbox_{f}")
+]
 
 st.sidebar.subheader("✅ Fincas seleccionadas:")
 for finca in fincas_seleccionadas:
@@ -44,8 +46,23 @@ def enviar_a_node_red(comando_texto):
         st.error(f"❌ Excepción al conectar con Node-RED: {str(e)}")
         return False
 
-def ejecutar_comando(comando, extra_param=""):
-    """Construye y envía el comando a cada finca seleccionada."""
+def consultar_estado_finca(finca):
+    """Envía un comando /get y devuelve respuesta (texto plano o JSON)."""
+    comando_final = f"/get {finca}"
+    payload = { "content": comando_final }
+    headers = { "Content-Type": "application/json" }
+
+    try:
+        response = requests.post(NODE_RED_URL, json=payload, headers=headers)
+        if response.status_code == 200:
+            return response.text
+        else:
+            return f"❌ Error al consultar {finca}: {response.status_code}"
+    except Exception as e:
+        return f"❌ Excepción: {str(e)}"
+
+def ejecutar_comando_simple(comando, extra_param=""):
+    """Construye y envía el comando sin mostrar respuesta."""
     if not fincas_seleccionadas:
         st.warning("⚠️ Selecciona al menos una finca.")
         return
@@ -59,21 +76,6 @@ def ejecutar_comando(comando, extra_param=""):
         if ok:
             st.success(f"✅ Comando enviado: {comando_final}")
 
-def consultar_estado_finca(finca):
-    """Envía un comando /get y devuelve respuesta simulada (en espera de API real)."""
-    comando_final = f"/get {finca}"
-    payload = { "content": comando_final }
-    headers = { "Content-Type": "application/json" }
-
-    try:
-        response = requests.post(NODE_RED_URL, json=payload, headers=headers)
-        if response.status_code == 200:
-            return response.text  # si devuelve texto plano
-        else:
-            return f"❌ Error al consultar {finca}: {response.status_code}"
-    except Exception as e:
-        return f"❌ Excepción: {str(e)}"
-
 # ─────────────── SECCIÓN PRINCIPAL ─────────────── #
 st.markdown("<h1 style='text-align: center;'>🔧 Comandos disponibles</h1>", unsafe_allow_html=True)
 col1, col2, col3 = st.columns(3)
@@ -81,31 +83,37 @@ col1, col2, col3 = st.columns(3)
 # 📦 Columna 1: Comandos directos
 with col1:
     st.subheader("📦 Comandos directos")
-    if st.button("🟢 /get"):
-        ejecutar_comando("get")
-    if st.button("🔄 /reboot"):
-        ejecutar_comando("reboot")
-    if st.button("📱 /sim"):
-        ejecutar_comando("sim")
-    if st.button("📊 /status"):
-        ejecutar_comando("status")
-    if st.button("📥 /latest"):
-        ejecutar_comando("latest")
 
-# 😴 Columna 2: sleep + mostrar respuesta debajo
+    if st.button("🟢 /get"):
+        if not fincas_seleccionadas:
+            st.warning("⚠️ Selecciona al menos una finca.")
+        for finca in fincas_seleccionadas:
+            comando = f"/get {finca}"
+            st.code(comando)
+            ok = enviar_a_node_red(comando)
+            if ok:
+                respuesta = consultar_estado_finca(finca)
+                st.markdown(f"**📡 Respuesta de `{finca}`:**")
+                st.text_area("Contenido", respuesta, height=100)
+
+    if st.button("🔄 /reboot"):
+        ejecutar_comando_simple("reboot")
+
+    if st.button("📱 /sim"):
+        ejecutar_comando_simple("sim")
+
+    if st.button("📊 /status"):
+        ejecutar_comando_simple("status")
+
+    if st.button("📥 /latest"):
+        ejecutar_comando_simple("latest")
+
+# 😴 Columna 2: sleep
 with col2:
     st.subheader("😴 Comando /sleep")
     tiempo = st.number_input("Duración en segundos", min_value=1, max_value=3600, step=1, value=60)
     if st.button("💤 Ejecutar /sleep"):
-        ejecutar_comando("sleep", str(tiempo))
-
-    # Mostrar respuesta de Node-RED al hacer /get por cada finca seleccionada
-    if fincas_seleccionadas:
-        st.subheader("📡 Respuesta desde Node-RED")
-        for finca in fincas_seleccionadas:
-            st.markdown(f"**Finca: `{finca}`**")
-            respuesta = consultar_estado_finca(finca)
-            st.text_area("Respuesta", respuesta, height=100)
+        ejecutar_comando_simple("sleep", str(tiempo))
 
 # ⚙️ Columna 3: set
 with col3:
@@ -122,5 +130,6 @@ with col3:
             st.warning("⚠️ Introduce al menos un valor.")
         else:
             extras = ",".join([f"{k}={v}" for k, v in valores_parametros.items()])
-            ejecutar_comando("set", extras)
+            ejecutar_comando_simple("set", extras)
+
 
